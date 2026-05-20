@@ -1,5 +1,6 @@
-# iii engine configuration
-# Docs: https://iii.dev/docs/how-to/configure-engine
+# iii engine configuration for a parent/orchestrator node.
+# External workers should run as separate processes/containers and connect to
+# this node with III_URL=ws://<orchestrator-host>:49134.
 workers:
   - name: iii-observability
     config:
@@ -18,13 +19,15 @@ workers:
     config:
       adapter:
         name: builtin
+
   - name: iii-state
     config:
       adapter:
         name: kv
         config:
           store_method: file_based
-          file_path: ./data/state_store.db
+          file_path: /app/data/state_store.db
+
   - name: iii-http
     config:
       port: 3111
@@ -33,14 +36,11 @@ workers:
       concurrency_request_limit: 1024
       cors:
         allowed_origins:
-        - '*'
+          - '*'
         allowed_methods:
-        - GET
-        - POST
-        - PUT
-        - DELETE
-        - OPTIONS
-  - name: inference-worker
-    worker_path: ./workers/inference-worker
-  - name: caller-worker
-    worker_path: ./workers/caller-worker
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - OPTIONS
+
