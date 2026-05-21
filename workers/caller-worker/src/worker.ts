@@ -6,6 +6,7 @@ const logger = new Logger();
 iii.registerFunction(
   'inference::get_response',
   async (payload: { messages: Record<string, any> } & Record<string, any>) => {
+    console.log('Received payload in TypeScript worker:', payload);
     logger.info('inference::get_response called in TypeScript', payload);
 
     const result = await iii.trigger({
