@@ -23,7 +23,7 @@ variable "instance_type" {
 }
 
 variable "inference_instance_type" {
-  default = "m7i-flex.large"
+  default = "c7i-flex.large"
 }
 
 variable "inference_root_volume_size" {
