@@ -1,3 +1,7 @@
+locals {
+  rpc_port = 49134
+}
+
 variable "vpc_cidr" {
   default = "10.0.0.0/16"
 }
@@ -32,13 +36,15 @@ variable "inference_root_volume_size" {
 }
 
 variable "ami_id" {
-  description = "Optional AMI override. Defaults to the latest Ubuntu 24.04 LTS amd64 AMI in the selected region."
+  description = "Ubuntu 24.04 LTS amd64 gp3 AMI for ap-south-2."
   type        = string
-  default     = null
+  default     = "ami-0fcad4d1dfad502e9"
 }
 
 variable "key_name" {
   description = "Existing AWS EC2 key pair name"
+  type        = string
+  default     = "alchemy-test-2"
 }
 
 variable "hf_token" {

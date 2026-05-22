@@ -2,6 +2,11 @@
 .env
 data/
 
+# Terraform local state and provider cache
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

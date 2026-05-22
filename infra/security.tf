@@ -59,8 +59,8 @@ resource "aws_security_group" "workers_sg" {
 resource "aws_security_group_rule" "api_rpc_from_workers" {
   type                     = "ingress"
   description              = "RPC from workers"
-  from_port                = 49134
-  to_port                  = 49134
+  from_port                = local.rpc_port
+  to_port                  = local.rpc_port
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.workers_sg.id
   security_group_id        = aws_security_group.api_sg.id
@@ -79,8 +79,8 @@ resource "aws_security_group_rule" "workers_ssh_from_api" {
 resource "aws_security_group_rule" "workers_rpc_from_api" {
   type                     = "ingress"
   description              = "RPC from API VM"
-  from_port                = 49134
-  to_port                  = 49134
+  from_port                = local.rpc_port
+  to_port                  = local.rpc_port
   protocol                 = "tcp"
   source_security_group_id = aws_security_group.api_sg.id
   security_group_id        = aws_security_group.workers_sg.id
@@ -89,8 +89,8 @@ resource "aws_security_group_rule" "workers_rpc_from_api" {
 resource "aws_security_group_rule" "workers_rpc_from_workers" {
   type              = "ingress"
   description       = "Worker-to-worker RPC"
-  from_port         = 49134
-  to_port           = 49134
+  from_port         = local.rpc_port
+  to_port           = local.rpc_port
   protocol          = "tcp"
   self              = true
   security_group_id = aws_security_group.workers_sg.id
