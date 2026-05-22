@@ -1,5 +1,8 @@
 # Architecture
 
+<img width="1737" height="777" alt="Screenshot 2026-05-22 at 15-16-23" src="https://github.com/user-attachments/assets/58be5c44-4c44-4b0a-a265-0413fb38be29" />
+
+
 ```text
 Client
   |
@@ -16,23 +19,15 @@ TypeScript caller worker (private subnet)
 Python inference worker (private subnet)
 ```
 
-| Component          | Runtime            | Responsibility                                                                   |
-| ------------------ | ------------------ | -------------------------------------------------------------------------------- |
-| API gateway VM     | Docker, Caddy, iii | Exposes HTTP and reverse-proxies traffic to the iii runtime.                     |
-| `caller-worker`    | TypeScript         | Registers the HTTP trigger and forwards requests to the inference function.      |
-| `inference-worker` | Python             | Loads `SmolLM2-135M-Instruct` GGUF and returns generated assistant text.         |
-| Terraform infra    | AWS                | Provisions VPC, public/private subnets, security groups, NAT, and EC2 instances. |
 
-## Live Smoke Test
-
+## Live API
 ```sh
-curl -X POST http://18.61.41.131/v1/chat/completions \
+curl -X POST http://16.112.19.3/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"messages":[{"role":"user","content":"Explain RPC in one sentence."}]}'
 ```
 
-## AWS Deployment
-
+## Setup
 ### 1. Configure AWS credentials
 
 ```sh
@@ -58,17 +53,17 @@ terraform apply
 
 Terraform outputs:
 
-| Output                | Description                                  |
-| --------------------- | -------------------------------------------- |
-| `api_public_ip`       | Public IP for the HTTP API gateway.          |
-| `worker_1_private_ip` | Private IP for the Python inference worker.  |
-| `worker_2_private_ip` | Private IP for the TypeScript caller worker. |
+```sh
+api_public_ip  
+worker_1_private_ip 
+worker_2_private_ip
+```
 
-The instances usually need 2-5 minutes after provisioning to install Docker, Node.js, Python dependencies, and load the model.
+> The instances usually need **2-5 minutes** after provisioning to install Docker, Node.js, Python dependencies, and load the model.
 
-Note: since AWS free-tier-friendly instance max size is `c7i-flex.large`. The original Gemma model was too heavy for smooth startup/inference on this instance class, so the inference worker uses `SmolLM2-135M-Instruct` and caps generation at `256` tokens for more predictable response times.
+> Note: since AWS free-tier-friendly instance max size is `c7i-flex.large`. The original Gemma model was too heavy for smooth startup/inference on this instance class, so the inference worker uses `SmolLM2-135M-Instruct` and caps generation at `256` tokens for more predictable response times.
 
-To destroy all AWS resources created:
+### 3. To destroy all AWS resources created:
 
 ```sh
 terraform destroy
@@ -114,25 +109,20 @@ Error response while the model is still loading or unavailable:
 }
 ```
 
-## Production Hardening
+**what you would harden before putting this in production?**
 
-Before production, I would prioritize:
 
-- Remote Terraform state with locking, instead of local state files.
-- Restricting SSH access to a trusted IP range or replacing it with AWS Systems Manager Session Manager.
-- TLS with a real domain, managed certificates, and HTTP-to-HTTPS redirects.
-- Moving secrets such as Hugging Face tokens into AWS Secrets Manager or SSM Parameter Store.
-- Health checks, structured logs, metrics, alarms, and bootstrap failure visibility.
-- Immutable deploy artifacts or AMIs instead of cloning from GitHub during EC2 startup.
-- Autoscaling and queue-based backpressure for inference traffic.
+- Make it HTTPS (Secured wiht TLS)
+- Put an WAF for blocking DDOS and malicious traffic
+- API Gateway(for throttling, rate limiting, request size limits, timeout configuration, authentication, logging)
+- Maybe Load Balancer if high traffic is there.  
 
-## Scaling the Model 100x
 
-For a much larger model, I would change the serving layer rather than only resizing EC2:
+**what you would do differently if the model were 100x larger?**
 
-- Use GPU instances or a managed inference platform.
-- Package model weights separately and cache them close to compute.
-- Serve through an optimized inference runtime such as vLLM, TGI, or Triton.
-- Split API, orchestration, and model serving into independently scalable tiers.
-- Add request queuing, batching, rate limits, and timeout controls.
-- Track model load time, token latency, GPU utilization, and error budgets.
+- Moving off to GPU-based inference (I've heard of SageMaker -- I'm not sure tho)
+- Having a more optimized runtime like vLLM, TGI, TensorRT-LLM, or llama.cpp 
+- Pulling a small model itself takes 2-3 minutes so ig, I would have to bake the model into an OS image and use that image (hosted in a private artifact registery) 
+- Something out of our hands but listing -- quantization, batching, KV cache, .. (optimizing model 😭)
+
+
