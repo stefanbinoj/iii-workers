@@ -27,6 +27,14 @@ iii.registerFunction(
       });
       logger.info("Running http inference...");
 
+      if (result?.status === 'model_unavailable') {
+        return {
+          status_code: 503,
+          body: result,
+          headers: { 'Content-Type': 'application/json' },
+        };
+      }
+
       return {
         status_code: 200,
         body: result,
@@ -39,8 +47,8 @@ iii.registerFunction(
       return {
         status_code: 503,
         body: {
-          error: 'Sorry, inference is unavailable right now. The model may still be loading. Please try again in a few minutes.',
-          status: 'upstream_error',
+          error: 'Sorry, the inference model is still loading or failed to load. Please try again in a few minutes.',
+          status: 'model_unavailable',
           details: message,
         },
         headers: { 'Content-Type': 'application/json' },
