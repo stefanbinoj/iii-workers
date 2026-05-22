@@ -1,0 +1,14 @@
+:80 {
+
+    handle_path /ws* {
+        reverse_proxy 127.0.0.1:49134
+    }
+
+    handle /stream/* {
+        reverse_proxy 127.0.0.1:3112
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:3111
+    }
+}
