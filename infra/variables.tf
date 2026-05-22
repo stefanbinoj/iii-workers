@@ -40,3 +40,10 @@ variable "ami_id" {
 variable "key_name" {
   description = "Existing AWS EC2 key pair name"
 }
+
+variable "hf_token" {
+  description = "Optional Hugging Face token for model downloads."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

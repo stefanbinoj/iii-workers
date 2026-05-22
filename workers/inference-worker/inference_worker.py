@@ -1,4 +1,5 @@
 import os
+import threading
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
@@ -17,44 +18,51 @@ logger = Logger()
 # pip install transformers accelerate gguf torch
 
 
-model_id = "ggml-org/gemma-3-270m-GGUF" # "Qwen/Qwen3-0.6B-GGUF"
-gguf_file = "gemma-3-270m-Q8_0.gguf" # "Qwen3-0.6B-Q8_0.gguf"  # Q8 quantized variant
-# model_id = "QuantFactory/SmolLM2-135M-Instruct-GGUF"
-# gguf_file = "SmolLM2-135M-Instruct.Q4_K_M.gguf"
+# model_id = "ggml-org/gemma-3-270m-GGUF" # "Qwen/Qwen3-0.6B-GGUF"
+# gguf_file = "gemma-3-270m-Q8_0.gguf" # "Qwen3-0.6B-Q8_0.gguf"  # Q8 quantized variant
+model_id = "QuantFactory/SmolLM2-135M-Instruct-GGUF"
+gguf_file = "SmolLM2-135M-Instruct.Q4_K_M.gguf"
+MAX_NEW_TOKENS = 256
 
 tokenizer = None
 model = None
+model_loading = False
 model_load_error = None
 
-GEMMA_CHAT_TEMPLATE = """{%- for message in messages -%}
-{%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}
-<start_of_turn>{{ role }}
-{{ message['content'] | trim }}<end_of_turn>
+CHAT_TEMPLATE = """{%- for message in messages -%}
+<|im_start|>{{ message['role'] }}
+{{ message['content'] | trim }}<|im_end|>
 {%- endfor -%}
 {%- if add_generation_prompt -%}
-<start_of_turn>model
+<|im_start|>assistant
 {%- endif -%}"""
 
 
 def load_model() -> bool:
-    global tokenizer, model, model_load_error
+    global tokenizer, model, model_loading, model_load_error
 
     if tokenizer is not None and model is not None:
         return True
+    if model_loading:
+        return False
     if model_load_error is not None:
         return False
 
     try:
+        model_loading = True
         logger.info("Loading inference model", {"model_id": model_id, "gguf_file": gguf_file})
-        tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=gguf_file)
-        model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=gguf_file)
-        tokenizer.chat_template = GEMMA_CHAT_TEMPLATE
+        hf_token = os.environ.get("HF_TOKEN") or None
+        tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=gguf_file, token=hf_token)
+        model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=gguf_file, token=hf_token)
+        tokenizer.chat_template = CHAT_TEMPLATE
         logger.info("Inference model loaded")
         return True
     except Exception as exc:
         model_load_error = str(exc)
         logger.error("Inference model failed to load", {"error": model_load_error})
         return False
+    finally:
+        model_loading = False
 
 
 # 3. Run inference
@@ -74,15 +82,14 @@ def run_inference_handler(payload: Dict[str, str | List[Dict[str, Any]]]) -> Dic
 
         print("Received messages for inference:", messages)
 
-        max_tokens = min(int(payload.get("max_tokens", 256)), 1024)
-        logger.info("Received messages for inference", {"messages": messages, "max_tokens": max_tokens})
+        logger.info("Received messages for inference", {"messages": messages, "max_tokens": MAX_NEW_TOKENS})
 
         text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
         print("step1")
         inputs = tokenizer(text, return_tensors="pt").to(model.device)
         print("step2")
 
-        output = model.generate(**inputs, max_new_tokens=max_tokens)
+        output = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS)
         print("step3")
 
         result = tokenizer.decode(output[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
@@ -139,6 +146,7 @@ def run_inference_handler(payload: Dict[str, str | List[Dict[str, Any]]]) -> Dic
 
 
 # iii.register_function("math::add", add_handler)
+threading.Thread(target=load_model, daemon=True).start()
 iii.register_function("inference::run_inference", run_inference_handler)
 
 print("Inference worker started - listening for calls")

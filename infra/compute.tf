@@ -38,6 +38,7 @@ resource "aws_instance" "worker_1" {
 
   user_data = templatefile("${path.module}/user_data/worker1-py.sh", {
     api_private_ip = aws_instance.api_vm.private_ip
+    hf_token       = var.hf_token
   })
   user_data_replace_on_change = true
 
