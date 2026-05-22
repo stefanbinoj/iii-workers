@@ -8,7 +8,9 @@ trap 'echo "Python worker bootstrap failed on line $LINENO at $(date -Is)"' ERR
 export DEBIAN_FRONTEND=noninteractive
 
 sudo apt -o Acquire::ForceIPv4=true update
-sudo apt -o Acquire::ForceIPv4=true install -y git netcat-openbsd nodejs npm python3-pip python3-venv
+sudo apt -o Acquire::ForceIPv4=true install -y ca-certificates curl git netcat-openbsd python3-pip python3-venv
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt -o Acquire::ForceIPv4=true install -y nodejs
 
 sudo npm i -g pm2
 

@@ -17,10 +17,10 @@ logger = Logger()
 # pip install transformers accelerate gguf torch
 
 
-# model_id = "ggml-org/gemma-3-270m-GGUF" # "Qwen/Qwen3-0.6B-GGUF"
-# gguf_file = "gemma-3-270m-Q8_0.gguf" # "Qwen3-0.6B-Q8_0.gguf"  # Q8 quantized variant
-model_id = "QuantFactory/SmolLM2-135M-Instruct-GGUF"
-gguf_file = "SmolLM2-135M-Instruct.Q4_K_M.gguf"
+model_id = "ggml-org/gemma-3-270m-GGUF" # "Qwen/Qwen3-0.6B-GGUF"
+gguf_file = "gemma-3-270m-Q8_0.gguf" # "Qwen3-0.6B-Q8_0.gguf"  # Q8 quantized variant
+# model_id = "QuantFactory/SmolLM2-135M-Instruct-GGUF"
+# gguf_file = "SmolLM2-135M-Instruct.Q4_K_M.gguf"
 
 # 2. Load tokenizer and model from the GGUF file
 tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=gguf_file)
@@ -78,13 +78,22 @@ tokenizer.chat_template = ("""{{ bos_token }}
 def run_inference_handler(payload: Dict[str, str | List[Dict[str, Any]]]) -> Dict[str, Any]:
     # prompt = "Explain quantum entanglement in simple terms."
     messages = payload.get("messages", [])
+    if not messages:
+        return {"error": "messages must contain at least one message"}
+
     print("Received messages for inference:", messages)
 
     text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    print("step1")
     inputs = tokenizer(text, return_tensors="pt").to(model.device)
+    print("step2")
 
-    output = model.generate(**inputs, max_new_tokens=32000)
+    #output = model.generate(**inputs, max_new_tokens=32000)
+    output = model.generate(**inputs, max_new_tokens=256)
+    print("step3")
+
     result = tokenizer.decode(output[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
+    print("step4")
 
     print(result)
 

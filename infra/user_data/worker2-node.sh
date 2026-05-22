@@ -8,7 +8,9 @@ trap 'echo "Node worker bootstrap failed on line $LINENO at $(date -Is)"' ERR
 export DEBIAN_FRONTEND=noninteractive
 
 sudo apt -o Acquire::ForceIPv4=true update
-sudo apt -o Acquire::ForceIPv4=true install -y git netcat-openbsd nodejs npm
+sudo apt -o Acquire::ForceIPv4=true install -y ca-certificates curl git netcat-openbsd
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt -o Acquire::ForceIPv4=true install -y nodejs
 
 sudo npm i -g pm2
 
@@ -18,7 +20,7 @@ sudo -u ubuntu git clone https://github.com/stefanbinoj/iii-workers.git /home/ub
 
 cd /home/ubuntu/Developer/iii-workers/workers/caller-worker
 
-npm install
+sudo npm install
 
 until nc -z ${api_private_ip} 49134; do
   sleep 5

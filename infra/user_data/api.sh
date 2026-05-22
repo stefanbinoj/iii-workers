@@ -44,6 +44,6 @@ sudo chown root:root /etc/caddy/Caddyfile
 sudo chmod 644 /etc/caddy/Caddyfile
 sudo systemctl restart caddy
 
-sudo docker compose up -d
+docker compose up -d
 
 echo "API bootstrap completed at $(date -Is)"
