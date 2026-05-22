@@ -22,11 +22,11 @@ gguf_file = "gemma-3-270m-Q8_0.gguf" # "Qwen3-0.6B-Q8_0.gguf"  # Q8 quantized va
 # model_id = "QuantFactory/SmolLM2-135M-Instruct-GGUF"
 # gguf_file = "SmolLM2-135M-Instruct.Q4_K_M.gguf"
 
-# 2. Load tokenizer and model from the GGUF file
-tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=gguf_file)
-model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=gguf_file)
+tokenizer = None
+model = None
+model_load_error = None
 
-tokenizer.chat_template = """{%- for message in messages -%}
+GEMMA_CHAT_TEMPLATE = """{%- for message in messages -%}
 {%- set role = 'model' if message['role'] == 'assistant' else message['role'] -%}
 <start_of_turn>{{ role }}
 {{ message['content'] | trim }}<end_of_turn>
@@ -35,28 +35,67 @@ tokenizer.chat_template = """{%- for message in messages -%}
 <start_of_turn>model
 {%- endif -%}"""
 
+
+def load_model() -> bool:
+    global tokenizer, model, model_load_error
+
+    if tokenizer is not None and model is not None:
+        return True
+    if model_load_error is not None:
+        return False
+
+    try:
+        logger.info("Loading inference model", {"model_id": model_id, "gguf_file": gguf_file})
+        tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=gguf_file)
+        model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=gguf_file)
+        tokenizer.chat_template = GEMMA_CHAT_TEMPLATE
+        logger.info("Inference model loaded")
+        return True
+    except Exception as exc:
+        model_load_error = str(exc)
+        logger.error("Inference model failed to load", {"error": model_load_error})
+        return False
+
+
 # 3. Run inference
 def run_inference_handler(payload: Dict[str, str | List[Dict[str, Any]]]) -> Dict[str, Any]:
     # prompt = "Explain quantum entanglement in simple terms."
-    messages = payload.get("messages", [])
-    if not messages:
-        return {"error": "messages must contain at least one message"}
+    try:
+        if not load_model():
+            return {
+                "error": "Sorry, the inference model is still loading or failed to load. Please try again in a few minutes.",
+                "status": "model_unavailable",
+                "details": model_load_error,
+            }
 
-    print("Received messages for inference:", messages)
+        messages = payload.get("messages", [])
+        if not messages:
+            return {"error": "messages must contain at least one message", "status": "bad_request"}
 
-    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    print("step1")
-    inputs = tokenizer(text, return_tensors="pt").to(model.device)
-    print("step2")
+        print("Received messages for inference:", messages)
 
-    #output = model.generate(**inputs, max_new_tokens=32000)
-    output = model.generate(**inputs, max_new_tokens=256)
-    print("step3")
+        max_tokens = min(int(payload.get("max_tokens", 256)), 1024)
+        logger.info("Received messages for inference", {"messages": messages, "max_tokens": max_tokens})
 
-    result = tokenizer.decode(output[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
-    print("step4")
+        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        print("step1")
+        inputs = tokenizer(text, return_tensors="pt").to(model.device)
+        print("step2")
 
-    print(result)
+        output = model.generate(**inputs, max_new_tokens=max_tokens)
+        print("step3")
+
+        result = tokenizer.decode(output[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
+        print("step4")
+
+        print(result)
+    except Exception as exc:
+        logger.error("Inference failed", {"error": str(exc)})
+        return {
+            "error": "Sorry, inference failed. The model may still be warming up. Please try again in a few minutes.",
+            "status": "inference_error",
+            "details": str(exc),
+        }
 
     # running_inference = iii.trigger(
     #     {

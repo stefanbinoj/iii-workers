@@ -7,7 +7,7 @@ variable "aws_region" {
 }
 
 variable "availability_zone" {
-  default = "ap-south-2a"
+  default = "ap-south-2c"
 }
 
 variable "public_subnet_cidr" {

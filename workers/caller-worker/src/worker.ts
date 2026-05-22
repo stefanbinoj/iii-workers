@@ -9,16 +9,10 @@ iii.registerFunction(
     console.log('Received payload in TypeScript worker:', payload);
     logger.info('inference::get_response called in TypeScript', payload);
 
-    const result = await iii.trigger({
+    return iii.trigger({
       function_id: 'inference::run_inference',
       payload,
     });
-
-    return {
-      result,
-      success:
-        "You've connected two workers and they're interoperating seamlessly, now let's add a few more workers to expand this project's functionality.",
-    };
   },
 );
 
@@ -26,16 +20,32 @@ iii.registerFunction(
 iii.registerFunction(
   'http::run_inference_over_http',
   async (payload: { body: { messages: Record<string, any> } & Record<string, any> }) => {
-    const result = await iii.trigger({
-      function_id: 'inference::get_response',
-      payload: payload.body,
-    });
-    logger.info("Running http inference...")
-    return {
-      status_code: 200,
-      body: { result },
-      headers: { 'Content-Type': 'application/json' },
-    };
+    try {
+      const result = await iii.trigger({
+        function_id: 'inference::get_response',
+        payload: payload.body,
+      });
+      logger.info("Running http inference...");
+
+      return {
+        status_code: 200,
+        body: result,
+        headers: { 'Content-Type': 'application/json' },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.error('http::run_inference_over_http failed', { error: message });
+
+      return {
+        status_code: 503,
+        body: {
+          error: 'Sorry, inference is unavailable right now. The model may still be loading. Please try again in a few minutes.',
+          status: 'upstream_error',
+          details: message,
+        },
+        headers: { 'Content-Type': 'application/json' },
+      };
+    }
   },
 );
 
