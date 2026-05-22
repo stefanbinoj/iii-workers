@@ -22,9 +22,8 @@ sudo -u ubuntu git clone https://github.com/stefanbinoj/iii-workers.git /home/ub
 cd /home/ubuntu/Developer/iii-workers/workers/inference-worker
 
 sudo -u ubuntu python3 -m venv .venv
-. .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+sudo -u ubuntu .venv/bin/pip install --upgrade pip
+sudo -u ubuntu .venv/bin/pip install -r requirements.txt
 
 until nc -z ${api_private_ip} 49134; do
   sleep 5

@@ -1,5 +1,4 @@
 import os
-import threading
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
@@ -24,11 +23,6 @@ model_id = "QuantFactory/SmolLM2-135M-Instruct-GGUF"
 gguf_file = "SmolLM2-135M-Instruct.Q4_K_M.gguf"
 MAX_NEW_TOKENS = 256
 
-tokenizer = None
-model = None
-model_loading = False
-model_load_error = None
-
 CHAT_TEMPLATE = """{%- for message in messages -%}
 <|im_start|>{{ message['role'] }}
 {{ message['content'] | trim }}<|im_end|>
@@ -37,45 +31,18 @@ CHAT_TEMPLATE = """{%- for message in messages -%}
 <|im_start|>assistant
 {%- endif -%}"""
 
-
-def load_model() -> bool:
-    global tokenizer, model, model_loading, model_load_error
-
-    if tokenizer is not None and model is not None:
-        return True
-    if model_loading:
-        return False
-    if model_load_error is not None:
-        return False
-
-    try:
-        model_loading = True
-        logger.info("Loading inference model", {"model_id": model_id, "gguf_file": gguf_file})
-        hf_token = os.environ.get("HF_TOKEN") or None
-        tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=gguf_file, token=hf_token)
-        model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=gguf_file, token=hf_token)
-        tokenizer.chat_template = CHAT_TEMPLATE
-        logger.info("Inference model loaded")
-        return True
-    except Exception as exc:
-        model_load_error = str(exc)
-        logger.error("Inference model failed to load", {"error": model_load_error})
-        return False
-    finally:
-        model_loading = False
+logger.info("Loading inference model", {"model_id": model_id, "gguf_file": gguf_file})
+hf_token = os.environ.get("HF_TOKEN") or None
+tokenizer = AutoTokenizer.from_pretrained(model_id, gguf_file=gguf_file, token=hf_token)
+model = AutoModelForCausalLM.from_pretrained(model_id, gguf_file=gguf_file, token=hf_token)
+tokenizer.chat_template = CHAT_TEMPLATE
+logger.info("Inference model loaded")
 
 
 # 3. Run inference
 def run_inference_handler(payload: Dict[str, str | List[Dict[str, Any]]]) -> Dict[str, Any]:
     # prompt = "Explain quantum entanglement in simple terms."
     try:
-        if not load_model():
-            return {
-                "error": "Sorry, the inference model is still loading or failed to load. Please try again in a few minutes.",
-                "status": "model_unavailable",
-                "details": model_load_error,
-            }
-
         messages = payload.get("messages", [])
         if not messages:
             return {"error": "messages must contain at least one message", "status": "bad_request"}
@@ -99,8 +66,8 @@ def run_inference_handler(payload: Dict[str, str | List[Dict[str, Any]]]) -> Dic
     except Exception as exc:
         logger.error("Inference failed", {"error": str(exc)})
         return {
-            "error": "Sorry, inference failed. The model may still be warming up. Please try again in a few minutes.",
-            "status": "inference_error",
+            "error": "Sorry, the inference model is still loading or failed to load. Please try again in a few minutes.",
+            "status": "model_unavailable",
             "details": str(exc),
         }
 
@@ -146,7 +113,6 @@ def run_inference_handler(payload: Dict[str, str | List[Dict[str, Any]]]) -> Dic
 
 
 # iii.register_function("math::add", add_handler)
-threading.Thread(target=load_model, daemon=True).start()
 iii.register_function("inference::run_inference", run_inference_handler)
 
 print("Inference worker started - listening for calls")

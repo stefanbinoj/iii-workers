@@ -20,13 +20,13 @@ sudo -u ubuntu git clone https://github.com/stefanbinoj/iii-workers.git /home/ub
 
 cd /home/ubuntu/Developer/iii-workers/workers/caller-worker
 
-sudo npm install
+sudo -u ubuntu npm install
 
 until nc -z ${api_private_ip} 49134; do
   sleep 5
 done
 
-III_URL=ws://${api_private_ip}:49134 pm2 start npm --name worker-node -- run dev
-pm2 save
+sudo -u ubuntu env III_URL=ws://${api_private_ip}:49134 pm2 start npm --name worker-node -- run dev
+sudo -u ubuntu pm2 save
 
 echo "Node worker bootstrap completed at $(date -Is)"
