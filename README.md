@@ -41,6 +41,7 @@ export AWS_ACCESS_KEY_ID=your_access_key_id
 export AWS_SECRET_ACCESS_KEY=your_secret_access_key
 export AWS_DEFAULT_REGION=ap-south-2
 ```
+**Pls crate a ssh key of name 'alchemy-test-2' before proceeding via terraform scipts**
 
 ### 2. Deploy with Terraform
 
